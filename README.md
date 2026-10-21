@@ -3,13 +3,6 @@
 Multi-agent city decision-support. Phase 1 = chat + document upload + 5-step LangGraph pipeline
 (Router → Retriever → Checker → Fallback → Report).
 
-## 5-step setup
-1. `python -m venv .venv && source .venv/bin/activate`
-2. `pip install -r requirements.txt`
-3. `cp .env.example .env` and add `GOOGLE_API_KEY` (required) and `PINECONE_API_KEY` (for documents)
-4. `uvicorn app.main:app --reload`
-5. Open http://localhost:8000, go to **Docs**, upload a PDF, then ask a question.
-
 ## Modes
 - Only `GOOGLE_API_KEY`: general-knowledge + web (Gemini Google Search grounding), labelled honestly.
 - Both keys: answers from your documents, falling back to web when the documents are insufficient.
