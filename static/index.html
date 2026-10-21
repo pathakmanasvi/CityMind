@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CityMind · Urban Control Room</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+<style>
+:root{--bg:#0f0d1a;--panel:rgba(255,255,255,.05);--line:rgba(190,170,255,.16);--tx:#ece9f7;--mut:#9a95b5;--ac:#b9a4ff;--ac2:#8fe3d0;--warn:#ffcf8a;--bad:#ff9aa8;--grid:rgba(185,164,255,.06)}
+[data-theme=light]{--bg:#f6f3fc;--panel:rgba(255,255,255,.75);--line:rgba(110,80,200,.18);--tx:#241d3b;--mut:#6b6488;--ac:#6d4fd8;--ac2:#0f8f78;--warn:#a8650a;--bad:#b3243f;--grid:rgba(109,79,216,.07)}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:36px 36px;overflow:hidden}
+.app{display:grid;grid-template-columns:76px 1fr 320px;height:100%;gap:12px;padding:12px}
+.glass{background:var(--panel);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px}
+.logo{font-weight:800;letter-spacing:.08em;color:var(--ac);font-size:11px;margin:4px 0 8px}
+.nav{width:60px;padding:8px 2px;border:0;background:none;color:var(--mut);border-radius:12px;cursor:pointer;font:600 10px/1.2 inherit;display:grid;gap:3px;justify-items:center;transition:.2s}
+.nav span{font-size:20px}.nav:hover:not(:disabled){color:var(--tx);background:var(--panel)}
+.nav.on{color:var(--ac);background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.nav:disabled{opacity:.35;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.top h1{font-size:15px;margin:0;flex:1;min-width:140px}
+.pill{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.pill.ok{color:var(--ac2)}.pill.no{color:var(--warn)}
+input,select,textarea{background:transparent;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit}
+select option{background:var(--bg);color:var(--tx)}
+.btn{background:var(--ac);color:#150f2b;border:0;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;transition:transform .15s}
+.btn:hover:not(:disabled){transform:translateY(-1px)}.btn:disabled{opacity:.5;cursor:wait}
+.btn.ghost{background:none;color:var(--tx);border:1px solid var(--line)}
+.view{display:none;flex:1;min-height:0;flex-direction:column}.view.on{display:flex}
+.pipe{display:flex;gap:6px;align-items:center;padding:12px 16px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.node{font-size:12px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);color:var(--mut);white-space:nowrap;transition:.35s}
+.node.run{color:var(--ac);border-color:var(--ac);box-shadow:0 0 14px color-mix(in srgb,var(--ac) 50%,transparent);animation:pulse 1s infinite}
+.node.done{color:var(--ac2);border-color:var(--ac2)}.node.skipped{opacity:.4;text-decoration:line-through}.node.error{color:var(--bad);border-color:var(--bad)}
+.arrow{color:var(--line)}@keyframes pulse{50%{opacity:.6}}
+.chat{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:min(760px,100%);padding:12px 16px;border-radius:16px;animation:in .3s ease both;overflow-wrap:anywhere}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.msg.user{align-self:flex-end;background:color-mix(in srgb,var(--ac) 22%,transparent);border:1px solid var(--line)}
+.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.msg p{margin:.4em 0}.msg table{border-collapse:collapse;display:block;overflow-x:auto}.msg td,.msg th{border:1px solid var(--line);padding:4px 8px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;margin-bottom:6px;border:1px solid currentColor}
+.tag.docs{color:var(--ac2)}.tag.part{color:var(--ac)}.tag.web{color:var(--warn)}.tag.gen{color:var(--mut)}
+.empty{margin:auto;text-align:center;color:var(--mut);max-width:460px}.empty h2{color:var(--tx);margin:.2em 0}
+.ex{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+.ex button{font:inherit;font-size:13px;color:var(--tx);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:6px 12px;cursor:pointer}
+.ex button:hover{border-color:var(--ac)}
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--line),transparent,var(--line));background-size:200% 100%;animation:sk 1.2s infinite;margin:8px 0}
+@keyframes sk{to{background-position:-200% 0}}
+.composer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+.composer textarea{flex:1;resize:none;height:46px;max-height:140px}
+.docs-wrap{padding:16px;overflow:auto;display:grid;gap:14px;align-content:start}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:34px 16px;text-align:center;color:var(--mut);transition:.2s;cursor:pointer}
+.drop.over,.drop:hover{border-color:var(--ac);color:var(--tx)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .25s}
+.file{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-bottom:1px solid var(--line)}
+.ev{padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0}
+.ev h2{font-size:13px;margin:0;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.src{font-size:13px;border:1px solid var(--line);border-radius:12px;padding:10px}.src b{color:var(--ac)}.src small{color:var(--mut);display:block;margin-bottom:4px}
+.src.hl{border-color:var(--ac);box-shadow:0 0 0 2px color-mix(in srgb,var(--ac) 30%,transparent)}
+.toasts{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:9}
+.toast{background:var(--bg);border:1px solid var(--bad);color:var(--tx);padding:10px 14px;border-radius:12px;max-width:340px;animation:in .25s}
+.toast.ok{border-color:var(--ac2)}
+@media(max-width:980px){.app{grid-template-columns:64px 1fr}.ev{position:fixed;inset:12px 12px 12px auto;width:min(340px,92vw);z-index:5;transform:translateX(110%);transition:.3s;background:var(--bg)}.ev.open{transform:none}}
+@media(max-width:560px){.app{grid-template-columns:1fr;grid-template-rows:1fr 64px;padding:8px;gap:8px}.rail{order:2;flex-direction:row;overflow-x:auto;justify-content:flex-start}.logo{display:none}.nav{flex:0 0 56px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.pad{padding:16px;overflow:auto;display:grid;gap:14px;align-content:start}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row input{flex:1;min-width:130px}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel)}
+.card h3{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.sl{display:grid;grid-template-columns:200px 1fr 56px;gap:10px;align-items:center;font-size:13px;margin:6px 0}.sl input{padding:0;border:0;accent-color:var(--ac)}
+.ind{display:grid;grid-template-columns:200px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:8px 0}
+.meter{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.meter i{display:block;height:100%;background:var(--ac2);transition:width .3s}.meter i.bad{background:var(--bad)}
+.note{font-size:12px;color:var(--mut)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.stat b{display:block;font-size:26px;color:var(--ac)}
+.tl{display:grid;gap:12px;border-left:2px solid var(--line);padding-left:16px;margin-left:6px}
+.ph{position:relative}.ph:before{content:"";position:absolute;left:-23px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--ac)}
+.ph h4{margin:0}.ph small{color:var(--ac2)}.ph ul{margin:4px 0;padding-left:18px}.ph b{font-size:12px;color:var(--mut)}
+#mapbox{flex:1;min-height:320px;border-radius:14px;border:1px solid var(--line);margin:0 16px 16px}
+.leaflet-container{background:var(--bg)}
+@media(max-width:700px){.sl,.ind{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+ <nav class="rail glass" aria-label="Main">
+  <div class="logo">CITY<br>MIND</div>
+  <button class="nav on" data-v="ask"><span>💬</span>Ask</button>
+  <button class="nav" data-v="sim"><span>🧪</span>Simulator</button>
+  <button class="nav" data-v="compare"><span>⚖️</span>Compare</button>
+  <button class="nav" data-v="dash"><span>📊</span>Dashboard</button>
+  <button class="nav" data-v="map"><span>🗺️</span>Map</button>
+  <button class="nav" data-v="roadmap"><span>🧭</span>Roadmap</button>
+  <button class="nav" data-v="docs"><span>📄</span>Docs</button>
+ </nav>
+
+ <main class="main glass">
+  <header class="top">
+   <h1 id="title">Ask your city</h1>
+   <span class="pill" id="mode">checking…</span>
+   <label class="pill">City <input id="city" value="My City" maxlength="60" style="width:120px;padding:2px 6px;border:0" aria-label="City name"></label>
+   <button class="btn ghost" id="theme" aria-label="Toggle theme">◐</button>
+   <button class="btn ghost" id="evBtn" aria-label="Toggle evidence panel">Evidence</button>
+  </header>
+
+  <section class="view on" id="v-ask">
+   <div class="pipe" id="pipe" aria-live="polite"></div>
+   <div class="chat" id="chat"></div>
+   <div class="composer">
+    <textarea id="q" placeholder="Ask about zoning, parking, water, green space…" maxlength="2000" aria-label="Question"></textarea>
+    <button class="btn" id="send">Ask</button>
+   </div>
+  </section>
+
+  <section class="view" id="v-docs">
+   <div class="docs-wrap">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload documents">
+     <b>Drop PDF / TXT / MD files here</b><br>or click to choose · files are read in your browser, then sent in ~30k-character parts
+     <input type="file" id="file" multiple accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown" hidden>
+    </div>
+    <div class="bar" id="bar" hidden><i></i></div>
+    <div id="files"></div>
+    <div><button class="btn ghost" id="wipe">Delete this city's documents</button></div>
+   </div>
+  </section>
+
+  <section class="view" id="v-sim"><div class="pad">
+   <div class="card"><h3>Scenario sliders (% change)</h3><div id="simsl"></div>
+    <div class="row"><button class="btn" id="simai">Ask AI to assess this scenario</button><button class="btn ghost" id="simreset">Reset</button></div></div>
+   <div class="card"><h3>Indicators (baseline = 100)</h3><div id="simind"></div>
+    <p class="note">Illustrative rule-of-thumb model with simple assumptions, not a forecast. Use the AI assessment for rule-based checks.</p></div>
+   <div id="simout"></div></div></section>
+
+  <section class="view" id="v-compare"><div class="pad">
+   <div class="card"><h3>Compare cities</h3>
+    <div class="row"><input id="cA" placeholder="City A" maxlength="60" aria-label="City A"><input id="cB" placeholder="City B" maxlength="60" aria-label="City B"><input id="cC" placeholder="City C (optional)" maxlength="60" aria-label="City C"></div>
+    <div class="row" style="margin-top:10px"><input id="cTopic" placeholder="Topic, e.g. parking norms, FAR limits, rainwater harvesting" maxlength="300" aria-label="Topic"><button class="btn" id="cGo">Compare</button></div>
+    <p class="note">Each city's documents are used when uploaded under that city name in Docs. Otherwise general knowledge is used and marked.</p></div>
+   <div id="cOut"></div></div></section>
+
+  <section class="view" id="v-dash"><div class="pad" id="dashbody"></div></section>
+
+  <section class="view" id="v-map">
+   <div class="row" style="padding:16px 16px 10px"><input id="mapq" placeholder="Search a place" maxlength="80" aria-label="Place">
+    <button class="btn" id="mapgo">Locate</button>
+    <label class="note"><input type="checkbox" class="lyr" value="park"> Parks</label>
+    <label class="note"><input type="checkbox" class="lyr" value="hospital"> Hospitals</label>
+    <label class="note"><input type="checkbox" class="lyr" value="school"> Schools</label>
+    <label class="note"><input type="checkbox" class="lyr" value="station"> Stations</label>
+    <span class="note" id="mapinfo"></span></div>
+   <div id="mapbox"></div></section>
+
+  <section class="view" id="v-roadmap"><div class="pad">
+   <div class="card"><h3>Roadmap generator</h3>
+    <textarea id="rGoal" rows="3" style="width:100%" maxlength="500" placeholder="Goal, e.g. Reduce flooding and add 20% more green space" aria-label="Goal"></textarea>
+    <div class="row" style="margin-top:10px"><label class="note">Horizon <select id="rYears"><option>3</option><option selected>5</option><option>10</option><option>15</option></select> years</label><button class="btn" id="rGo">Generate roadmap</button></div></div>
+   <div id="rOut"></div></div></section>
+ </main>
+
+ <aside class="ev glass" id="ev" aria-label="Evidence">
+  <h2>Evidence</h2>
+  <div id="evbody" class="src" style="color:var(--mut)">Sources for the current answer will appear here.</div>
+ </aside>
+</div>
+<div class="toasts" id="toasts" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const STEPS=['Router','Retriever','Checker','Fallback','Report'];
+const EXAMPLES=['What is the maximum FAR for residential plots?','How much parking is needed for a 40-flat building?','What are the rules for rainwater harvesting?'];
+let history=[],busy=false,store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+
+function toast(m,ok){const t=document.createElement('div');t.className='toast'+(ok?' ok':'');t.textContent=m;$('#toasts').append(t);setTimeout(()=>t.remove(),5000)}
+async function api(path,opt){let r;try{r=await fetch('/api'+path,opt)}catch{throw new Error('Cannot reach the server.')}
+ let j={};try{j=await r.json()}catch{}if(!r.ok)throw new Error(j.error||j.detail&&'Invalid request'||'Server error '+r.status);return j}
+
+// theme + nav
+document.documentElement.dataset.theme=store.get('theme','dark');
+$('#theme').onclick=()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;store.set('theme',t)};
+$('#evBtn').onclick=()=>$('#ev').classList.toggle('open');
+document.querySelectorAll('.nav[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));b.classList.add('on');
+ document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));$('#v-'+b.dataset.v).classList.add('on');$('#title').textContent=TITLES[b.dataset.v];onView(b.dataset.v)});
+$('#city').value=store.get('city','My City');$('#city').onchange=()=>store.set('city',$('#city').value.trim()||'My City');
+
+// status
+async function status(){try{const s=await api('/status');const m=$('#mode');
+ m.textContent={documents:'● Documents + web',general:'● General knowledge only',offline:'● No API key'}[s.mode];m.className='pill '+(s.mode==='documents'?'ok':'no');
+ if(s.mode!=='documents')m.title='Set GOOGLE_API_KEY and PINECONE_API_KEY for document mode';window.ST=s}catch(e){$('#mode').textContent='● Offline';toast(e.message)}}
+
+// pipeline
+function drawPipe(states={}){$('#pipe').innerHTML=STEPS.map((s,i)=>`<span class="node ${states[s]||''}">${s}</span>${i<4?'<span class="arrow">→</span>':''}`).join('')}
+async function animate(trace){const st={};for(const t of trace){st[t.step]='run';drawPipe(st);await new Promise(r=>setTimeout(r,260));st[t.step]=t.status;drawPipe(st)}}
+drawPipe();
+
+// chat
+function empty(){$('#chat').innerHTML=`<div class="empty"><h2>Evidence-backed city answers</h2><p>Upload your city's rules in <b>Docs</b>, then ask anything. Without documents I answer from general knowledge and say so.</p><div class="ex">${EXAMPLES.map(e=>`<button>${esc(e)}</button>`).join('')}</div></div>`;
+ document.querySelectorAll('.ex button').forEach(b=>b.onclick=()=>{$('#q').value=b.textContent;ask()})}
+empty();
+function add(role,html){const c=$('#chat');if(c.querySelector('.empty'))c.innerHTML='';const d=document.createElement('div');d.className='msg '+role;d.innerHTML=html;c.append(d);c.scrollTop=c.scrollHeight;return d}
+const TAG={'From documents':'docs','Partly from documents':'part','Web':'web','General knowledge':'gen'};
+function render(md){let h=DOMPurify.sanitize(marked.parse(md,{breaks:true}),{FORBID_TAGS:['style','form'],FORBID_ATTR:['onerror','onclick']});
+ return h.replace(/\[(\d{1,2})\]/g,'<sup><a href="#" data-n="$1" style="color:var(--ac)">[$1]</a></sup>')}
+function evidence(r){const b=$('#evbody');b.className='';b.style.color='';
+ let h=(r.sources||[]).map(s=>`<div class="src" id="src${s.n}"><small>[${s.n}] ${esc(s.source)} · similarity ${s.score}</small>${esc(s.text)}</div>`).join('');
+ h+=(r.web_sources||[]).map(w=>`<div class="src"><small>Web</small><a href="${esc(w.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ac)">${esc(w.title||w.url)}</a></div>`).join('');
+ b.innerHTML=h||'<div class="src" style="color:var(--mut)">No sources for this answer.</div>'}
+$('#chat').addEventListener('click',e=>{const a=e.target.closest('a[data-n]');if(!a)return;e.preventDefault();$('#ev').classList.add('open');
+ const t=$('#src'+a.dataset.n);if(t){document.querySelectorAll('.src.hl').forEach(x=>x.classList.remove('hl'));t.classList.add('hl');t.scrollIntoView({block:'center'})}});
+async function ask(){const q=$('#q').value.trim();if(!q||busy)return;busy=true;$('#send').disabled=true;$('#q').value='';
+ add('user',esc(q));const ph=add('bot','<div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:70%"></div>');
+ drawPipe({Router:'run'});
+ try{const r=await api('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,city:$('#city').value.trim()||'My City',history:history.slice(-8)})});
+  await animate(r.trace);
+  ph.innerHTML=`<span class="tag ${TAG[r.label]||'gen'}">${esc(r.label)}</span>`+render(r.answer);
+  history.push({role:'user',content:q},{role:'assistant',content:r.answer.slice(0,1500)});evidence(r);
+  const saved=store.get('chats',[]);saved.push({q,a:r.answer,label:r.label,t:Date.now()});store.set('chats',saved.slice(-50));
+ }catch(e){ph.remove();drawPipe();toast(e.message)}
+ busy=false;$('#send').disabled=false;$('#q').focus()}
+$('#send').onclick=ask;$('#q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask()}});
+
+// ---------- document upload (PDF read in the browser) ----------
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+async function readPdf(file){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let out='';
+ for(let p=1;p<=pdf.numPages;p++){const tc=await (await pdf.getPage(p)).getTextContent();
+  out+=tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('')+'\n\n'}
+ const letters=(out.match(/[A-Za-z\u0900-\u097F]/g)||[]).length;
+ if(letters<40*Math.min(pdf.numPages,3))throw new Error(`"${file.name}" has almost no selectable text. It is probably a scanned PDF. OCR it first (e.g. with ocrmypdf) and upload again.`);
+ return out}
+async function readFile(f){if(/\.pdf$/i.test(f.name)||f.type==='application/pdf')return readPdf(f);
+ const t=await f.text();if(t.trim().length<20)throw new Error(`"${f.name}" is empty.`);return t}
+function parts(text,n=30000){const out=[];for(let i=0;i<text.length;){let e=Math.min(i+n,text.length);if(e<text.length){const c=text.lastIndexOf('\n',e);if(c>i+n*.6)e=c}out.push(text.slice(i,e));i=e}return out}
+async function post(body){for(let a=1;a<=3;a++){try{return await api('/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
+ catch(e){if(a===3||/disabled|No usable|invalid/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,1200*a))}}}
+async function upload(files){const city=$('#city').value.trim()||'My City';const bar=$('#bar');bar.hidden=false;
+ for(const f of files){const row=document.createElement('div');row.className='file';row.innerHTML=`<span>${esc(f.name)}</span><span>reading…</span>`;$('#files').prepend(row);const st=row.lastChild;
+  try{const ps=parts(await readFile(f));let n=0;
+   for(let i=0;i<ps.length;i++){st.textContent=`uploading ${i+1}/${ps.length}`;bar.firstChild.style.width=((i+1)/ps.length*100)+'%';n+=(await post({city,source:f.name,part:i,text:ps[i]})).chunks}
+   st.textContent=`✓ ${n} chunks`;st.style.color='var(--ac2)'}
+  catch(e){st.textContent='✗ failed';st.style.color='var(--bad)';toast(e.message)}}
+ bar.hidden=true;bar.firstChild.style.width='0';status()}
+const drop=$('#drop'),fi=$('#file');drop.onclick=()=>fi.click();drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fi.click()}};
+fi.onchange=()=>{upload([...fi.files]);fi.value=''};
+['dragenter','dragover'].forEach(v=>drop.addEventListener(v,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(v=>drop.addEventListener(v,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>upload([...e.dataTransfer.files]));
+$('#wipe').onclick=async()=>{const c=$('#city').value.trim()||'My City';if(!confirm(`Delete all documents for "${c}"?`))return;
+ try{await api('/city/'+encodeURIComponent(c),{method:'DELETE'});toast('Deleted.',true);status()}catch(e){toast(e.message)}};
+
+// ---------- Phase 3 features ----------
+const TITLES={ask:'Ask your city',docs:'Documents',sim:'Scenario simulator',compare:'Compare cities',dash:'Dashboard',map:'City map',roadmap:'Roadmap'};
+const jpost=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+const curCity=()=>$('#city').value.trim()||'My City';
+const guard=(btn,fn)=>btn.onclick=async()=>{btn.disabled=true;try{await fn()}catch(e){toast(e.message)}btn.disabled=false};
+const botBox=(label,md)=>`<div class="msg bot"><span class="tag ${TAG[label]||'gen'}">${esc(label)}</span>${render(md)}</div>`;
+function onView(v){if(v==='dash')drawDash();if(v==='map')setTimeout(()=>{initMap();MAP.invalidateSize()},50);if(v==='compare'&&!$('#cA').value)$('#cA').value=curCity()}
+
+// Simulator
+const SL=[['pop','Population growth',-10,50],['far','Allowed building density (FAR)',-20,50],['green','Green / open space',-20,50],['transit','Public-transport capacity',-20,50]];
+const IND=[['Traffic congestion',-1,v=>100+v.pop+.5*v.far-1.2*v.transit],['Air pollution',-1,v=>100+.6*v.pop+.3*v.far-.5*v.green-.8*v.transit],
+ ['Green space per person',1,v=>100*(1+v.green/100)/(1+v.pop/100)],['Water demand',-1,v=>100+v.pop+.2*v.far],['Housing affordability pressure',-1,v=>100+.9*v.pop-.6*v.far]];
+$('#simsl').innerHTML=SL.map(([k,l,a,b])=>`<div class="sl"><label for="s_${k}">${l}</label><input type="range" id="s_${k}" min="${a}" max="${b}" value="0"><b id="o_${k}">0%</b></div>`).join('');
+const simVals=()=>Object.fromEntries(SL.map(([k])=>[k,+$('#s_'+k).value]));
+function simDraw(){const v=simVals();SL.forEach(([k])=>$('#o_'+k).textContent=(v[k]>0?'+':'')+v[k]+'%');
+ $('#simind').innerHTML=IND.map(([n,dir,f])=>{const x=f(v),d=x-100,good=d*dir>=0;return `<div class="ind"><span>${n}</span><div class="meter"><i class="${good?'':'bad'}" style="width:${Math.max(2,Math.min(100,x/2))}%"></i></div><b>${x.toFixed(0)} (${d>=0?'+':''}${d.toFixed(0)})</b></div>`}).join('')}
+SL.forEach(([k])=>$('#s_'+k).oninput=simDraw);simDraw();
+$('#simreset').onclick=()=>{SL.forEach(([k])=>$('#s_'+k).value=0);simDraw();$('#simout').innerHTML=''};
+guard($('#simai'),async()=>{const v=simVals(),c=curCity(),f=n=>(n>0?'+':'')+n+'%';
+ const q=`Scenario for ${c}: population ${f(v.pop)}, allowed building density (FAR) ${f(v.far)}, green/open space ${f(v.green)}, public-transport capacity ${f(v.transit)}. Which planning rules, constraints or approvals apply to this scenario, and what are the likely impacts and risks? Do not invent figures.`;
+ $('#simout').innerHTML='<div class="msg bot"><div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div></div>';
+ try{const r=await jpost('/ask',{question:q,city:c,history:[]});$('#simout').innerHTML=botBox(r.label,r.answer);evidence(r)}catch(e){$('#simout').innerHTML='';throw e}});
+
+// Compare
+guard($('#cGo'),async()=>{const cities=['#cA','#cB','#cC'].map(i=>$(i).value.trim()).filter(Boolean),topic=$('#cTopic').value.trim();
+ if(cities.length<2||!topic)throw new Error('Enter at least two cities and a topic.');
+ $('#cOut').innerHTML='<div class="msg bot"><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div></div>';
+ try{const r=await jpost('/compare',{cities,topic});
+  const cov=Object.entries(r.coverage).map(([c,n])=>`${esc(c)}: ${n?n+' passages':'no documents'}`).join(' · ');
+  $('#cOut').innerHTML=botBox(r.label,r.answer)+`<p class="note">Document coverage → ${cov}</p>`}catch(e){$('#cOut').innerHTML='';throw e}});
+
+// Dashboard
+function bars(o){const m=Math.max(1,...Object.values(o));const e=Object.entries(o);return e.length?e.map(([k,n])=>`<div class="ind"><span>${esc(k)}</span><div class="meter"><i style="width:${n/m*100}%"></i></div><b>${n}</b></div>`).join(''):'<p class="note">Nothing yet.</p>'}
+async function drawDash(){await status();const s=window.ST||{},cities=s.cities||{},chats=store.get('chats',[]),by={};
+ chats.forEach(c=>by[c.label]=(by[c.label]||0)+1);
+ const doc=(by['From documents']||0)+(by['Partly from documents']||0),pct=chats.length?Math.round(doc/chats.length*100):0;
+ $('#dashbody').innerHTML=`<div class="stats">
+  <div class="card stat"><h3>Mode</h3><b style="font-size:16px">${esc(s.mode||'?')}</b></div>
+  <div class="card stat"><h3>Cities with documents</h3><b>${Object.keys(cities).length}</b></div>
+  <div class="card stat"><h3>Indexed chunks</h3><b>${Object.values(cities).reduce((a,b)=>a+b,0)}</b></div>
+  <div class="card stat"><h3>Questions asked</h3><b>${chats.length}</b></div>
+  <div class="card stat"><h3>Backed by documents</h3><b>${pct}%</b></div></div>
+  <div class="card"><h3>Indexed chunks per city</h3>${bars(cities)}</div>
+  <div class="card"><h3>Answers by source type</h3>${bars(by)}</div>
+  <div class="card"><h3>Recent questions</h3>${chats.slice(-6).reverse().map(c=>`<p style="margin:6px 0">${esc(c.q)} <span class="tag ${TAG[c.label]||'gen'}">${esc(c.label)}</span></p>`).join('')||'<p class="note">No questions yet.</p>'}</div>
+  <p class="note">History is stored only in this browser.</p>`}
+
+// Map (OpenStreetMap + Nominatim + Overpass, all called from the browser)
+let MAP,ME,LAYERS={},CEN=null;
+const LYR={park:['leisure','park','#8fe3d0'],hospital:['amenity','hospital','#ff9aa8'],school:['amenity','school','#ffcf8a'],station:['railway','station','#b9a4ff']};
+function initMap(){if(MAP)return;MAP=L.map('mapbox').setView([19.076,72.8777],11);
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(MAP);$('#mapq').value=curCity()}
+async function locate(){initMap();const q=$('#mapq').value.trim()||curCity();
+ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q)).then(x=>x.json()).catch(()=>{throw new Error('Could not reach the map search service.')});
+ if(!r.length)throw new Error('Place not found.');CEN={lat:+r[0].lat,lon:+r[0].lon};MAP.setView([CEN.lat,CEN.lon],12);
+ if(ME)ME.remove();ME=L.marker([CEN.lat,CEN.lon]).addTo(MAP).bindPopup(esc(r[0].display_name)).openPopup();
+ Object.keys(LAYERS).forEach(k=>{LAYERS[k].remove();delete LAYERS[k]});document.querySelectorAll('.lyr:checked').forEach(c=>layer(c.value))}
+async function layer(k){if(!CEN)return;const [tag,val,col]=LYR[k];
+ const q=`[out:json][timeout:25];nwr["${tag}"="${val}"](around:5000,${CEN.lat},${CEN.lon});out center 120;`;
+ $('#mapinfo').textContent='Loading '+k+'…';
+ try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  if(!r.ok)throw 0;const d=await r.json();const g=L.layerGroup();
+  d.elements.forEach(e=>{const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;L.circleMarker([la,lo],{radius:6,color:col,fillColor:col,fillOpacity:.7}).bindPopup(esc(e.tags?.name||k)).addTo(g)});
+  if(LAYERS[k])LAYERS[k].remove();LAYERS[k]=g.addTo(MAP);$('#mapinfo').textContent=`${d.elements.length} ${k} points within 5 km (max 120 shown)`}
+ catch{$('#mapinfo').textContent='';toast('Map data service is busy. Try again in a moment.')}}
+guard($('#mapgo'),locate);
+document.querySelectorAll('.lyr').forEach(c=>c.onchange=()=>{if(c.checked)layer(c.value);else if(LAYERS[c.value]){LAYERS[c.value].remove();delete LAYERS[c.value]}});
+
+// Roadmap
+guard($('#rGo'),async()=>{const goal=$('#rGoal').value.trim();if(!goal)throw new Error('Describe your goal first.');
+ $('#rOut').innerHTML='<div class="msg bot"><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div></div>';
+ try{const r=await jpost('/roadmap',{city:curCity(),goal,years:+$('#rYears').value});
+  const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  $('#rOut').innerHTML=`<div class="card"><span class="tag ${TAG[r.label]||'gen'}">${esc(r.label)}</span><p>${esc(r.summary||'')}</p>
+   <div class="tl">${r.phases.map(p=>`<div class="ph"><h4>${esc(p.name)}</h4><small>${esc(p.timeframe||'')}</small><b>Actions</b><ul>${li(p.actions)}</ul><b>Risks</b><ul>${li(p.risks)}</ul><b>KPIs</b><ul>${li(p.kpis)}</ul></div>`).join('')}</div>
+   <p class="note">AI-generated draft. Verify with the local authority before acting.</p></div>`}catch(e){$('#rOut').innerHTML='';throw e}});
+status();
+</script>
+</body>
+</html>

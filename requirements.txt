@@ -1,0 +1,5 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+google-genai>=1.0
+pinecone>=5.0
+python-dotenv>=1.0
